@@ -1,8 +1,8 @@
 use decimal_wad::{decimal::U192, rate::U128};
 use raydium_amm_v3::libraries::U256;
-use yvaults::utils::FULL_BPS;
+// use yvaults::utils::FULL_BPS;
 
-use crate::{Price, ScopeError, ScopeResult};
+use crate::{Price, ScopeError, ScopeResult, utils::consts::FULL_BPS};
 
 /// Transform sqrt price to normal price scaled by 2^64
 fn sqrt_price_to_x64_price(sqrt_price: u128, decimals_a: u8, decimals_b: u8) -> U192 {

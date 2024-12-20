@@ -6,6 +6,7 @@ pub mod ktokens_token_x;
 
 pub mod jito_restaking;
 pub mod jupiter_lp;
+pub mod flash_lp;
 pub mod meteora_dlmm;
 pub mod msol_stake;
 pub mod orca_whirlpool;
@@ -107,6 +108,10 @@ pub enum OracleType {
     SwitchboardOnDemand = 24,
     /// Jito restaking tokens
     JitoRestaking = 25, // TODO adjust if we merge ALP first
+    /// Flash Trade's LP token price computed using current oracle prices
+    FlashLPCompute = 26,
+    /// Flash Trade's LP token price computed using scope prices
+    FlashLpScope = 27,
 }
 
 impl OracleType {
@@ -138,6 +143,7 @@ impl OracleType {
             OracleType::MeteoraDlmmAtoB | OracleType::MeteoraDlmmBtoA => 30_000,
             OracleType::JupiterLpCompute | OracleType::JupiterLpScope => 120_000,
             OracleType::JitoRestaking => 25_000,
+            OracleType::FlashLPCompute | OracleType::FlashLpScope => 120_000,
             OracleType::DeprecatedPlaceholder1 | OracleType::DeprecatedPlaceholder2 => {
                 panic!("DeprecatedPlaceholder is not a valid oracle type")
             }
@@ -266,6 +272,19 @@ where
         OracleType::JitoRestaking => {
             jito_restaking::get_price(base_account, clock).map_err(Into::into)
         }
+        OracleType::FlashLPCompute => {
+            flash_lp::get_price_recomputed(base_account, clock, extra_accounts)
+        }
+        OracleType::FlashLpScope => {
+            flash_lp::get_price_recomputed_scope(
+                index,
+                base_account,
+                clock,
+                &oracle_prices.key(),
+                oracle_prices.load()?.deref(),
+                extra_accounts,
+            )
+        }
         OracleType::DeprecatedPlaceholder1 | OracleType::DeprecatedPlaceholder2 => {
             panic!("DeprecatedPlaceholder is not a valid oracle type")
         }
@@ -333,6 +352,9 @@ pub fn validate_oracle_cfg(
             let _price: Price = AnchorDeserialize::deserialize(&mut price_data)
                 .map_err(|_| error!(ScopeError::FixedPriceInvalid))?;
             Ok(())
+        }
+        OracleType::FlashLPCompute | OracleType::FlashLpScope => {
+            flash_lp::validate_flp_pool(price_account)
         }
         OracleType::JitoRestaking => jito_restaking::validate_account(price_account),
         OracleType::DeprecatedPlaceholder1 | OracleType::DeprecatedPlaceholder2 => {

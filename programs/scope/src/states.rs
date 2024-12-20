@@ -3,10 +3,11 @@ use std::mem::size_of;
 use anchor_lang::prelude::*;
 use decimal_wad::decimal::Decimal;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
+use rust_decimal::prelude::ToPrimitive;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-use crate::{utils::consts::*, MAX_ENTRIES, MAX_ENTRIES_U16};
+use crate::{utils::{consts::*, math::ten_pow}, MAX_ENTRIES, MAX_ENTRIES_U16};
 
 #[zero_copy]
 #[derive(Debug, Default, AnchorDeserialize, AnchorSerialize)]
@@ -23,6 +24,25 @@ pub struct Price {
     // exponent represents the number of decimals
     // for example, 8 for btc
     pub exp: u64,
+}
+
+impl Price {
+    pub fn scale_to_exponent(&self, target_exp: u64) -> Result<Price> {
+        if target_exp == self.exp {
+            return Ok(*self);
+        }
+        if target_exp > self.exp {
+            Ok(Price {
+                value: self.value / ten_pow((target_exp - self.exp).to_u32().unwrap()).to_u64().unwrap(),
+                exp: target_exp,
+            })
+        } else {
+            Ok(Price {
+                value: self.value * ten_pow((self.exp - target_exp).to_u32().unwrap()).to_u64().unwrap(),
+                exp: target_exp,
+            })
+        }
+    }
 }
 
 #[zero_copy]

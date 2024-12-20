@@ -102,6 +102,9 @@ pub enum ScopeError {
 
     #[msg("Confidence interval check failed")]
     ConfidenceIntervalCheckFailed,
+
+    #[msg("Unexpected FLP configuration")]
+    UnexpectedFlpConfiguration,
 }
 
 impl<T> From<TryFromPrimitiveError<T>> for ScopeError
