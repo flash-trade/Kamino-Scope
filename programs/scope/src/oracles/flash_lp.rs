@@ -157,12 +157,16 @@ where
         })
     };
 
+    let compounding_factor = Decimal::from(flash_pool.compounding_stats.active_amount as u128)
+        / flash_pool.compounding_stats.total_supply;
+
     compute_price_from_custodies_and_prices(
         lp_token_supply,
         clock,
         custodies_and_prices_iter,
         aum_and_price_getter,
         market_accs,
+        compounding_factor,
     )
     .map_err(|e| {
         msg!(
@@ -181,6 +185,7 @@ where
 /// - Mint of the FLP token
 /// - The scope mint to price mapping (It must be built with the same mints and order than the custodies)
 /// - All custodies of the pool
+/// - All markets of the pool 
 pub fn get_price_recomputed_scope<'a, 'b>(
     entry_id: usize,
     flash_pool_acc: &AccountInfo<'a>,
@@ -292,12 +297,16 @@ where
         })
     };
 
+    let compounding_factor = Decimal::from(flash_pool.compounding_stats.active_amount as u128)
+        / flash_pool.compounding_stats.total_supply;
+
     let price = compute_price_from_custodies_and_prices(
         lp_token_supply,
         clock,
         custodies_and_prices_iter,
         aum_and_price_getter,
         market_accs,
+        compounding_factor,
     )
     .map_err(|e| {
         msg!(
@@ -316,6 +325,7 @@ fn compute_price_from_custodies_and_prices<T>(
     custodies_and_prices_iter: impl Iterator<Item = T>,
     aum_and_price_getter: impl Fn(T, &Clock) -> Result<CustodyAumResult>,
     market_accs: Vec<&AccountInfo>,
+    compounding_factor: Decimal,
 ) -> Result<DatedPrice> {
     let mut oldest_price_ts: u64 = clock.unix_timestamp.try_into().unwrap();
     let mut oldest_price_slot: u64 = clock.slot;
@@ -383,8 +393,11 @@ fn compute_price_from_custodies_and_prices<T>(
         pool_amount_usd
     };
 
-    // 5. Compute price
-    let price_dec = Decimal::from(lp_value) / lp_token_supply;
+    // 5. Compute underlying staked lp price (sFLP)
+    let sflp_price_dec = Decimal::from(lp_value) / lp_token_supply;
+
+    // 6. Compute the price of compounding lp token (FLP)
+    let price_dec = sflp_price_dec * compounding_factor;
 
     let dated_price = DatedPrice {
         price: price_dec.into(),
